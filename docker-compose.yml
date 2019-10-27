@@ -1,0 +1,27 @@
+version: '2'
+
+services:
+  api:
+    build:
+      context: ./api/
+    container_name: hyf_api
+    depends_on:
+      - store
+    volumes:
+      - ./api/src:/crew/src
+      - ./_volumes:/crew/uploads
+    environment:
+      APP_VERSION_NUMBER:
+      APP_VERSION_LABEL:
+      PG_CONNECTION_STRING: postgres://admin:admin@store:5432/emojipoetry
+      DOMAIN:
+
+  store:
+    image: postgres
+    container_name: hyf_store
+    build:
+      context: ./store
+    environment:
+      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: admin
+      POSTGRES_DATABASE: emojipoetry

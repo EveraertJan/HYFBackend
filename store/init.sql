@@ -1,0 +1,3 @@
+CREATE USER admin;
+CREATE DATABASE emojipoetry;
+GRANT ALL PRIVILEGES ON DATABASE emojipoetry TO admin;
