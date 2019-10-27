@@ -1,15 +1,15 @@
-version: '2'
+version: "2"
 
 services:
   api:
     build:
-      context: ./api/
-    container_name: hyf_api
+      context: ./backend/
+    container_name: hyf_backend
     depends_on:
       - store
     volumes:
-      - ./api/src:/crew/src
-      - ./_volumes:/crew/uploads
+      - ./backend/src:/hyf/src
+      - ./_volumes:/hyf/uploads
     environment:
       APP_VERSION_NUMBER:
       APP_VERSION_LABEL:
