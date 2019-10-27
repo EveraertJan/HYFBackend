@@ -75,6 +75,26 @@ class App {
           res.status(401).send();
         });
     });
+
+    app.patch("/posts/:id", async (req, res, next) => {
+      const data = {
+        title: req.body.title,
+        content: req.body.content
+      };
+
+      await this.pg
+        .update(data)
+        .where({ id: req.params.id })
+        .table("posts")
+        .returning("*")
+        .then(data => {
+          res.send(data);
+        })
+        .catch(error => {
+          console.log(error);
+          res.status(401).send();
+        });
+    });
     app.post("/posts", async (req, res, next) => {
       const data = {
         title: req.body.title,
