@@ -34,7 +34,7 @@ class App {
     app.use(cors({ credentials: false, origin: "*" }));
 
     app.get("/", async (req, res, next) => {
-      res.send(200, { message: "Server is running" });
+      res.send(html);
     });
 
     app.get("/posts", async (req, res, next) => {
@@ -139,3 +139,56 @@ class App {
   }
 }
 module.exports = App;
+
+const html = `
+<html>
+  <head>
+    <link href="http://getskeleton.com/dist/css/skeleton.css" rel="stylesheet" />
+  </head>
+<body>
+<div class="container">
+
+<h1> options for the API</h1>
+<div class="docs-section" id="grid">
+
+<h4> POST TO /posts</h4>
+
+<p>expects the following data</p>
+
+<pre><code>{
+  title: String: title of the post,
+  content: String: content of the post
+}
+</code></pre>
+
+<p>returns a full object with the UUID, id and dates (created and updated)</p>
+
+</div>
+<h4>PATCH TO /posts/[id]</h4>
+
+<p>expects the following data
+</p>
+<pre><code>{
+  title: String: title of the post,
+  content: String: content of the post
+}</code></pre>
+<p>
+returns a full object with the UUID, id and dates (created and updated)
+</p>
+<h4>GET to /posts</h4>
+
+<p>returns an array with all the known posts</p>
+
+<h4>GET to /posts/[id]</h4>
+
+<p>where <code>[id]</code> is the id of the post,
+returns a single post object</p>
+
+<h4> DELETE to /posts/[id]</h4>
+
+<p>removes the post from the database (use with caution)
+</p>
+</div>
+</body>
+</html>
+`;
