@@ -89,7 +89,7 @@ class App {
   async initialiseTables() {
     await this.pg.schema.hasTable("posts").then(function(exists) {
       if (!exists) {
-        return knex.schema
+        return this.pg.schema
           .createTable("posts", function(t) {
             table.increments();
             table.uuid("uuid");
