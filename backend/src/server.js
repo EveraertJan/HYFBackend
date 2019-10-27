@@ -91,7 +91,7 @@ class App {
     await this.pg.schema.hasTable("posts").then(function(exists) {
       if (!exists) {
         return _this.pg.schema
-          .createTable("posts", function(t) {
+          .createTable("posts", function(table) {
             table.increments();
             table.uuid("uuid");
             table.string("content");
