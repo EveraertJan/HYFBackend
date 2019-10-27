@@ -62,6 +62,19 @@ class App {
           res.status(401).send();
         });
     });
+    app.delete("/posts/:id", async (req, res, next) => {
+      await this.pg
+        .del()
+        .where({ id: req.params.id })
+        .table("posts")
+        .then(() => {
+          res.status(200).send("OK");
+        })
+        .catch(error => {
+          console.log(error);
+          res.status(401).send();
+        });
+    });
     app.post("/posts", async (req, res, next) => {
       const data = {
         title: req.body.title,
