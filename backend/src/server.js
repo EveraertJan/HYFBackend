@@ -87,9 +87,10 @@ class App {
   }
 
   async initialiseTables() {
+    const _this = this;
     await this.pg.schema.hasTable("posts").then(function(exists) {
       if (!exists) {
-        return this.pg.schema
+        return _this.pg.schema
           .createTable("posts", function(t) {
             table.increments();
             table.uuid("uuid");
