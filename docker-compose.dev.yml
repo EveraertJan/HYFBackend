@@ -1,11 +1,10 @@
-version: '2'
+version: "2"
 
 services:
   api:
     command: ["npm", "run", "start:dev"]
     ports:
-      - 8080:3000 
+      - 8000:3000
   store:
     ports:
       - 5432:5432
-
