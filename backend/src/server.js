@@ -7,6 +7,7 @@ const jwt = require("jwt-simple");
 const md5 = require("md5");
 const app = express();
 const server = http.Server(app);
+const retryKnex = require('./RetryKnex');
 
 const PORT = 3000;
 
@@ -18,7 +19,18 @@ class App {
       client: "pg",
       version: '9.6',
       connection: process.env.PG_CONNECTION_STRING,
-      searchPath: ['knex', 'public']
+      searchPath: ['knex', 'public'],
+      pool: {
+        min: 2,
+        max: 6,
+        createTimeoutMillis: 3000,
+        acquireTimeoutMillis: 30000,
+        idleTimeoutMillis: 30000,
+        reapIntervalMillis: 1000,
+        createRetryIntervalMillis: 100,
+        propagateCreateError: false // <- default is true, set to false
+      }
+
     });
 
     const _this = this;
@@ -31,6 +43,7 @@ class App {
 
     this.app = express();
     this.s = http.Server(this.app);
+
   }
 
   authorise(req, res, next) {
@@ -58,8 +71,10 @@ class App {
     app.get("/", async (req, res, next) => {
       res.send(html);
       await this.pg
-        .update({ userID: "19a5db26-3060-46d5-96be-490980949ac5" })
-        .table("posts");
+        .select('*')
+        .table("users").then((d) => {
+          console.log(d)
+        })
     });
 
     app.post("/login", async (req, res, next) => {
@@ -85,33 +100,35 @@ class App {
     });
 
     app.post("/register", async (req, res, next) => {
-      const data = {
+      const insert = {
         email: req.body.email,
         password: md5(req.body.password),
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         dateofbirth: req.body.dateofbirth
       };
-      data["uuid"] = uuidV1();
+      insert["uuid"] = uuidV1();
 
       await this.pg
         .select("uuid")
         .table("users")
-        .where({ email: data.email })
+        .where({ email: insert.email })
         .then(async data => {
           if (data.length == 0) {
+            console.log(data, insert)
             await this.pg
-              .insert(data)
+              .insert(insert)
               .table("users")
               .returning("*")
-              .then(result => {
-                res.send(result);
+              .then(r => {
+                console.log("returning", r)
+                res.status(200).send(r);
               })
               .catch(e => res.status(401).send(e));
           } else {
             res.status(400).send({ error: "email already exists" });
           }
-        });
+        }).catch(e => res.status(401).send(e));
     });
     app.get("/posts", this.authorise, async (req, res, next) => {
       await this.pg
@@ -206,9 +223,27 @@ class App {
           res.status(401).send();
         });
     });
+
     server.listen(3000, () => {
       console.log(`server up and listening on ${PORT}`);
     });
+
+    return await retryKnex(async () => {
+      const self = this;
+
+      await this.pg
+        .raw('select 1+1 as result')
+        .then(async (resolve, reject) => {
+          resolve();
+          return true
+        })
+        .catch((error) => {
+          console.log('- error:', error.code);
+          setTimeout(retryKnex(), 5000);
+        });
+    });
+
+
   }
 
   async initialiseTables() {
@@ -221,6 +256,7 @@ class App {
             table.uuid("uuid");
             table.string("content");
             table.string("title");
+            table.string("userID");
             table.timestamps(true, true);
           })
           .then(function() {
@@ -228,6 +264,17 @@ class App {
           });
       }
     });
+    // await this.pg.schema.hasTable("posts").then(function(exists) {
+    //   if (exists) {
+    //     return _this.pg.schema
+    //       .alterTable("posts", function(table) {
+    //         table.string("userID");
+    //       })
+    //       .then(function() {
+    //         console.log("created posts");
+    //       });
+    //   }
+    // });
 
     await this.pg.schema.hasTable("users").then(function(exists) {
       if (!exists) {
