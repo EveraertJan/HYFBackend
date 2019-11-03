@@ -3,11 +3,14 @@ const http = require("http");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const uuidV1 = require("uuid");
-const emoji = require("node-emoji");
-
+const jwt = require("jwt-simple");
+const md5 = require("md5");
 const app = express();
 const server = http.Server(app);
+
 const PORT = 3000;
+
+const secret = "quothed the raven";
 
 class App {
   constructor(opts) {
@@ -28,6 +31,23 @@ class App {
     this.s = http.Server(this.app);
   }
 
+  authorise(req, res, next) {
+    if (req.headers.authorization) {
+      const token = req.headers.authorization
+        .replace(" ", "")
+        .replace("Bearer:", "")
+        .replace("bearer:", "");
+      try {
+        const decoded = jwt.decode(token, secret);
+        req.body["authUserId"] = decoded.uuid;
+        next();
+      } catch (e) {
+        res.status(401).send({ error: "incorrect token" });
+      }
+    } else {
+      res.status(401).send({ error: "no token found" });
+    }
+  }
   async start() {
     app.use(bodyParser.json()); // to support JSON-encoded bodies
 
@@ -35,12 +55,69 @@ class App {
 
     app.get("/", async (req, res, next) => {
       res.send(html);
+      await this.pg
+        .update({ userID: "19a5db26-3060-46d5-96be-490980949ac5" })
+        .table("posts");
     });
 
-    app.get("/posts", async (req, res, next) => {
+    app.post("/login", async (req, res, next) => {
+      await this.pg
+        .select("*")
+        .table("users")
+        .where({
+          email: req.body.email
+        })
+        .then(data => {
+          for (let i = 0; i < data.length; i++) {
+            if (md5(req.body.password) == data[i].password) {
+              const { email, uuid, firstName, lastName } = data[i];
+              const token = jwt.encode(
+                { email, firstName, lastName, uuid },
+                secret
+              );
+              res.status(200).send(token);
+            }
+          }
+          res.status(401).send();
+        });
+    });
+
+    app.post("/register", async (req, res, next) => {
+      const data = {
+        email: req.body.email,
+        password: md5(req.body.password),
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        dateofbirth: req.body.dateofbirth
+      };
+      data["uuid"] = uuidV1();
+
+      await this.pg
+        .select("uuid")
+        .table("users")
+        .where({ email: data.email })
+        .then(async data => {
+          if (data.length == 0) {
+            await this.pg
+              .insert(data)
+              .table("users")
+              .returning("*")
+              .then(result => {
+                res.send(result);
+              })
+              .catch(e => res.status(401).send(e));
+          } else {
+            res.status(400).send({ error: "email already exists" });
+          }
+        });
+    });
+    app.get("/posts", this.authorise, async (req, res, next) => {
       await this.pg
         .select("*")
         .table("posts")
+        .where({
+          userID: req.body.authUserId
+        })
         .then(data => {
           res.send(data);
         })
@@ -49,23 +126,35 @@ class App {
           res.status(401).send();
         });
     });
-    app.get("/posts/:id", async (req, res, next) => {
-      await this.pg
-        .select("*")
-        .where({ id: req.params.id })
-        .table("posts")
-        .then(data => {
-          res.send(data);
-        })
-        .catch(error => {
-          console.log(error);
-          res.status(401).send();
-        });
-    });
-    app.delete("/posts/:id", async (req, res, next) => {
+    app.get("/cleanup", this.authorise, async (req, res, next) => {
       await this.pg
         .del()
-        .where({ id: req.params.id })
+        .where({ content: null, title: null })
+        .table("posts")
+        .then(data => {
+          res.send(data);
+        })
+        .catch(e => {
+          res.status(401).send;
+        });
+    });
+    app.get("/posts/:id", this.authorise, async (req, res, next) => {
+      await this.pg
+        .select("*")
+        .where({ id: req.params.id, userID: req.body.authUserId })
+        .table("posts")
+        .then(data => {
+          res.send(data);
+        })
+        .catch(error => {
+          console.log(error);
+          res.status(401).send();
+        });
+    });
+    app.delete("/posts/:id", this.authorise, async (req, res, next) => {
+      await this.pg
+        .del()
+        .where({ id: req.params.id, userID: req.body.authUserId })
         .table("posts")
         .then(() => {
           res.status(200).send("OK");
@@ -76,7 +165,7 @@ class App {
         });
     });
 
-    app.patch("/posts/:id", async (req, res, next) => {
+    app.patch("/posts/:id", this.authorise, async (req, res, next) => {
       const data = {
         title: req.body.title,
         content: req.body.content
@@ -84,7 +173,7 @@ class App {
 
       await this.pg
         .update(data)
-        .where({ id: req.params.id })
+        .where({ id: req.params.id, userID: req.body.authUserId })
         .table("posts")
         .returning("*")
         .then(data => {
@@ -95,10 +184,11 @@ class App {
           res.status(401).send();
         });
     });
-    app.post("/posts", async (req, res, next) => {
+    app.post("/posts", this.authorise, async (req, res, next) => {
       const data = {
         title: req.body.title,
-        content: req.body.content
+        content: req.body.content,
+        userID: req.body.authUserId
       };
       data["uuid"] = uuidV1();
 
@@ -133,6 +223,25 @@ class App {
           })
           .then(function() {
             console.log("created posts");
+          });
+      }
+    });
+
+    await this.pg.schema.hasTable("users").then(function(exists) {
+      if (!exists) {
+        return _this.pg.schema
+          .createTable("users", function(table) {
+            table.increments();
+            table.uuid("uuid");
+            table.string("firstName");
+            table.string("lastName");
+            table.string("dateofbirth");
+            table.string("email");
+            table.string("password");
+            table.timestamps(true, true);
+          })
+          .then(function() {
+            console.log("created users");
           });
       }
     });

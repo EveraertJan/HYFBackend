@@ -13,7 +13,8 @@ services:
     environment:
       APP_VERSION_NUMBER:
       APP_VERSION_LABEL:
-      PG_CONNECTION_STRING: postgres://admin:admin@store:5432/emojipoetry
+      # PG_CONNECTION_STRING: postgres://admin:admin@store:5432/emojipoetry
+      PG_CONNECTION_STRING: postgres://admin:admin@142.93.51.96:5432/emojipoetry
       DOMAIN:
 
   store:
