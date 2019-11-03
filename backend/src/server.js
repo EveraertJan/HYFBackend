@@ -7,7 +7,7 @@ const jwt = require("jwt-simple");
 const md5 = require("md5");
 const app = express();
 const server = http.Server(app);
-const retryKnex = require('./RetryKnex');
+const retryKnex = require('./retryKnex');
 
 const PORT = 3000;
 
