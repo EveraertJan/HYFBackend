@@ -1,4 +1,4 @@
-FROM library/postgres:9.6
+FROM library/postgres
 
 ADD init.sql /docker-entrypoint-initdb.d/
 ENV POSTGRES_USER admin

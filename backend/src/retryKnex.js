@@ -1,4 +1,4 @@
-const { retry } = require('./Retry.js');
+const { retry } = require('./retry.js');
 const retryOpts = {
   factor: 1.5,
   minTimeout: 2000,
