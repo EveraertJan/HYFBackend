@@ -145,6 +145,22 @@ class App {
           res.status(401).send();
         });
     });
+
+    app.get("/userinfo", this.authorise, async (req, res, next) => {
+      await this.pg
+        .select("firstName", "lastName", "uuid", "email")
+        .table("users")
+        .where({
+          uuid: req.body.authUserId
+        })
+        .then(data => {
+          res.send(data);
+        })
+        .catch(error => {
+          console.log(error);
+          res.status(401).send();
+        });
+    });
     app.get("/cleanup", this.authorise, async (req, res, next) => {
       await this.pg
         .del()
